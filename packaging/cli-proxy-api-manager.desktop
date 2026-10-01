@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=CLIProxyAPI Manager
+Comment=Manage the local coding-tool gateway
+Exec=xdg-open http://127.0.0.1:8317/management.html
+Icon=preferences-system-network
+Categories=Development;Network;

@@ -1,0 +1,106 @@
+name: Package stable upstream releases
+
+on:
+  schedule:
+    - cron: '17 4 * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/releases.yml'
+      - 'packaging/**'
+      - 'scripts/**'
+      - 'tests/**'
+      - 'release-config.json'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: copr-stable-releases
+  cancel-in-progress: false
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      matrix: ${{ steps.releases.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Test release selection
+        run: python3 -m unittest discover -s tests -v
+      - name: Find new published stable releases
+        id: releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          matrix=$(python3 scripts/releases.py discover)
+          printf 'matrix=%s\n' "$matrix" >> "$GITHUB_OUTPUT"
+          printf '%s\n' "$matrix"
+
+  package:
+    needs: discover
+    if: ${{ fromJson(needs.discover.outputs.matrix).include[0] != null && vars.COPR_OWNER != '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.discover.outputs.matrix) }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      COPR_OWNER: ${{ vars.COPR_OWNER }}
+      COPR_PROJECT: ${{ vars.COPR_PROJECT || 'cli-proxy-api' }}
+      PACKAGE: ${{ matrix.package }}
+      RELEASE_TAG: ${{ matrix.tag }}
+      MARKER: ${{ matrix.marker }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Configure COPR credentials
+        env:
+          COPR_CONFIG: ${{ secrets.COPR_CONFIG }}
+        run: |
+          set -euo pipefail
+          test -n "$COPR_OWNER" || { echo 'Set the COPR_OWNER repository variable.' >&2; exit 1; }
+          test -n "$COPR_CONFIG" || { echo 'Set the COPR_CONFIG repository secret.' >&2; exit 1; }
+          mkdir -p "$HOME/.config"
+          umask 077
+          printf '%s\n' "$COPR_CONFIG" > "$HOME/.config/copr"
+          pip install --disable-pip-version-check 'copr-cli==2.6' 'copr==2.7'
+      - name: Prepare release sources and offline dependencies
+        run: |
+          set -euo pipefail
+          # Fedora supplies the Go version declared by upstream go.mod.
+          # Source resolution always starts with the published release API.
+          podman run --rm --network=host \
+            -e GH_TOKEN -v "$PWD:/work:Z" -w /work \
+            registry.fedoraproject.org/fedora:44 \
+            bash -euc 'dnf -y install golang python3 >/dev/null; python3 scripts/releases.py prepare "$1" "$2"' \
+            -- "$PACKAGE" "$RELEASE_TAG"
+          sudo chown -R "$(id -u):$(id -g)" build
+          bash scripts/build-srpm.sh "$PACKAGE"
+          sudo chown -R "$(id -u):$(id -g)" build
+      - name: Submit and wait for COPR
+        run: |
+          set -euo pipefail
+          python3 scripts/submit.py "$PACKAGE" "$COPR_OWNER" "$COPR_PROJECT"
+      - name: Record successful packaged release
+        env:
+          VERSION: ${{ matrix.version }}
+        run: |
+          set -euo pipefail
+          # The marker is the daily check's durable state. Failed COPR builds
+          # never create it, so tomorrow's check retries the release.
+          gh release create "$MARKER" \
+            --target "$GITHUB_SHA" \
+            --title "$PACKAGE $VERSION" \
+            --notes "Published upstream release $RELEASE_TAG, built by COPR from packaging commit $GITHUB_SHA. See provenance.json and copr-build.json for exact sources and build results." \
+            "build/$PACKAGE/SRPMS/"*.src.rpm \
+            "build/$PACKAGE/provenance.json" \
+            "build/$PACKAGE/copr-build.json"
+      - name: Remove COPR credentials
+        if: always()
+        run: rm -f "$HOME/.config/copr"

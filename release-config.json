@@ -1,0 +1,9 @@
+{
+  "revision": 1,
+  "copr_project": "cli-proxy-api",
+  "chroots": ["fedora-44-x86_64", "fedora-45-x86_64"],
+  "packages": {
+    "cli-proxy-api": "router-for-me/CLIProxyAPI",
+    "cli-proxy-api-manager": "router-for-me/Cli-Proxy-API-Management-Center"
+  }
+}

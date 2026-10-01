@@ -1,0 +1,55 @@
+Name:           cli-proxy-api
+Version:        @VERSION@
+Release:        @REVISION@%{?dist}
+Summary:        Local OpenAI, Claude and Gemini compatible CLI gateway
+License:        MIT
+URL:            https://github.com/router-for-me/CLIProxyAPI
+Source0:        cli-proxy-api-%{version}.tar.gz
+Source1:        cli-proxy-api-%{version}-vendor.tar.gz
+Source2:        cli-proxy-api.service
+BuildRequires:  golang >= @GO_VERSION@
+BuildRequires:  gcc
+BuildRequires:  systemd-rpm-macros
+Requires:       cli-proxy-api-manager
+ExclusiveArch:  x86_64
+
+# Keep the Go runtime symbol information needed by dynamic library plugins.
+%global debug_package %{nil}
+%global __strip /bin/true
+%global __brp_strip /bin/true
+%global __brp_strip_comment_note /bin/true
+
+%description
+CLIProxyAPI provides a local gateway for coding tools. Configure each user's
+credentials separately in ~/.config/cli-proxy-api/config.yaml. The package
+does not create accounts, start a service or expose a network listener.
+
+%prep
+%setup -q
+tar -xzf %{SOURCE1}
+
+%build
+export CGO_ENABLED=1 GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOMAXPROCS=2
+go build -mod=vendor -p 2 -trimpath -buildvcs=false \
+    -ldflags '-X main.Version=%{version} -X main.Commit=@COMMIT@ -X main.BuildDate=@BUILD_DATE@' \
+    -o cli-proxy-api ./cmd/server
+
+%install
+install -Dpm 0755 cli-proxy-api %{buildroot}%{_bindir}/cli-proxy-api
+install -Dpm 0644 %{SOURCE2} %{buildroot}%{_userunitdir}/cli-proxy-api.service
+install -Dpm 0644 config.example.yaml %{buildroot}%{_datadir}/cli-proxy-api/config.example.yaml
+
+%check
+./cli-proxy-api -h > help.txt 2>&1
+grep -F 'CLIProxyAPI Version: %{version},' help.txt
+
+%files
+%license LICENSE bundled-licenses
+%doc README.md
+%{_bindir}/cli-proxy-api
+%{_userunitdir}/cli-proxy-api.service
+%{_datadir}/cli-proxy-api/config.example.yaml
+
+%changelog
+* @CHANGELOG_DATE@ Julien Kellerhals <julienkellerhals@users.noreply.github.com> - @VERSION@-@REVISION@
+- Package the published stable release from source with vendored dependencies.

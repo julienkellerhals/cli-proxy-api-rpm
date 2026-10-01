@@ -1,0 +1,17 @@
+[Unit]
+Description=Local CLIProxyAPI gateway for coding tools
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/cli-proxy-api -config %h/.config/cli-proxy-api/config.yaml
+Environment=MANAGEMENT_STATIC_PATH=/usr/share/cli-proxy-api/management.html
+Restart=on-failure
+RestartSec=2
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=default.target

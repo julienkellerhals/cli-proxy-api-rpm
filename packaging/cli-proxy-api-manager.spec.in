@@ -1,0 +1,37 @@
+Name:           cli-proxy-api-manager
+Version:        @VERSION@
+Release:        @REVISION@%{?dist}
+Summary:        Web manager for the local CLIProxyAPI gateway
+License:        MIT
+URL:            https://github.com/router-for-me/Cli-Proxy-API-Management-Center
+Source0:        management-%{version}.html
+Source1:        manager-LICENSE
+Source2:        cli-proxy-api-manager.desktop
+BuildArch:      noarch
+
+%description
+The self-contained management page published by the upstream stable release.
+The page is served by the local gateway and requires its management key.
+
+%prep
+%setup -q -c -T
+cp %{SOURCE1} LICENSE
+
+%build
+# Upstream publishes the manager as one self-contained HTML release asset.
+
+%install
+install -Dpm 0644 %{SOURCE0} %{buildroot}%{_datadir}/cli-proxy-api/management.html
+install -Dpm 0644 %{SOURCE2} %{buildroot}%{_datadir}/applications/cli-proxy-api-manager.desktop
+
+%check
+grep -qi '<!doctype html' %{SOURCE0}
+
+%files
+%license LICENSE
+%{_datadir}/cli-proxy-api/management.html
+%{_datadir}/applications/cli-proxy-api-manager.desktop
+
+%changelog
+* @CHANGELOG_DATE@ Julien Kellerhals <julienkellerhals@users.noreply.github.com> - @VERSION@-@REVISION@
+- Package the checksum-verified HTML asset from the published stable release.

@@ -1,0 +1,6 @@
+build/
+__pycache__/
+.env
+.venv/
+*.rpm
+copr.conf
