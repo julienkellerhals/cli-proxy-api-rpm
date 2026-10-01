@@ -1,5 +1,11 @@
 # CLIProxyAPI Fedora packages
 
+Unofficial Fedora RPM packaging maintained by Julien Kellerhals. This is not
+the official CLIProxyAPI installation method and is not affiliated with or
+endorsed by the CLIProxyAPI or Management Center maintainers, Fedora, Anthropic,
+or OpenAI. Upstream software, release assets, copyright and license notices are
+retained; packaging issues belong in this repository.
+
 GitHub Actions checks published upstream releases every day at 04:17 UTC and
 submits new source RPMs to COPR. Only stable `vMAJOR.MINOR.PATCH` releases are
 accepted. Drafts, prereleases, branch heads and upstream `main` are excluded.
@@ -17,6 +23,12 @@ The target chroots are Fedora 44 and 45 on x86_64. This is a personal COPR
 repository, not a submission to Fedora's official package collection. Bundled
 dependencies and the manager's upstream HTML distribution are included in the
 source RPMs.
+
+Both upstream projects are MIT-licensed. Redistribution is permitted provided
+their copyright and permission notices are included. The RPMs install those
+notices under `/usr/share/licenses/`; the gateway also includes bundled Go
+dependency license and notice files. The packaging code's own license does not
+replace upstream or dependency licenses.
 
 ## One-time setup
 
